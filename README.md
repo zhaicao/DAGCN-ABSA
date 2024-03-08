@@ -1,4 +1,4 @@
-# Investigating Typed Syntactic Dependencies for Targeted Sentiment Classification Using Graph Attention Neural Network
+# Dual-channel and Aspect-aware Graph Convolutional Network for Aspect-based Sentiment Analysis in Computational Social Systems
 
 Coming soon!
 
