@@ -15,6 +15,7 @@ class SyntacticGCN(nn.Module):
         self.hidden_dim = hidden_dim
         self.num_layers = num_layers
         self.num_neighbors_list = num_layers
+        self.device = args.device
         self.gcn = nn.ModuleList()
         self.gcn.append(SynGCNLayer(input_dim=input_dim, hidden_dim=hidden_dim, device=args.device,
                                     agg_hidden_method=args.agg_hidden_method,
@@ -44,8 +45,9 @@ class SyntacticGCN(nn.Module):
         for l in range(self.num_layers):
             # the max number of source nodes
             src_node_max_num = max([len(nodes) for nodes in src_nodes[l]])
-            src_mask = torch.zeros(input.shape[0], src_node_max_num, input.shape[1], input.shape[-1])  # (B, src_node_num, maxlen, emb_dim)
-            neigh_mask = torch.zeros_like(src_mask)
+            src_mask = torch.zeros(input.shape[0], src_node_max_num, input.shape[1], input.shape[-1]).\
+                to(self.device)  # (B, src_node_num, maxlen, emb_dim)
+            neigh_mask = torch.zeros_like(src_mask).to(self.device)  # (B, src_node_num, maxlen, emb_dim)
             neigh_nodes = []
             for batch in range(input.shape[0]):
                 src_nodes_idx = src_nodes[l][batch]

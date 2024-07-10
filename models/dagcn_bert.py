@@ -45,7 +45,7 @@ class ContextEncoder(nn.Module):
         elif self.args.output_merge.lower() == "biaffine":
             self.affine1 = nn.Parameter(torch.Tensor(self.hidden_dim, self.hidden_dim))
             self.affine2 = nn.Parameter(torch.Tensor(self.hidden_dim, self.hidden_dim))
-            self.affine_dropout = nn.Dropout(args.gcn_dropout)
+            self.affine_dropout = nn.Dropout(args.biaffine_dropout)
             self.affine_map = nn.Linear(self.hidden_dim * 2, self.hidden_dim)
         else:
             exit(0)

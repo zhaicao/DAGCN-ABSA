@@ -174,10 +174,7 @@ class Instructor:
                 inputs = [sample_batched[col].to(self.opt.device) for col in self.opt.inputs_cols]
                 outputs, penal = self.model(inputs)
                 targets = sample_batched['polarity'].to(self.opt.device)
-                if self.opt.losstype is not None:
-                    loss = criterion(outputs, targets) + penal
-                else:
-                    loss = criterion(outputs, targets)
+                loss = criterion(outputs, targets)
                 loss.backward()
                 optimizer.step()
                 
@@ -376,12 +373,10 @@ def main():
     # SynGCN
     parser.add_argument('--syn_layers', type=int, default=2, help='Num of GCN layers.')
     parser.add_argument('--input_dropout', type=float, default=0.7, help='Input dropout rate.')
-    parser.add_argument('--gcn_dropout', type=float, default=0.5, help='GCN layer dropout rate.')
-    parser.add_argument("--layer_dropout", type=float, default=0, help="RGAT layer dropout rate.")
-    parser.add_argument('--lower', default=True, help='Lowercase all words.')
+    parser.add_argument('--biaffine_dropout', type=float, default=0.5, help='GCN layer dropout rate.')
     parser.add_argument('--direct', default=False, help='directed graph or undirected graph')
     parser.add_argument('--loop', default=True)
-    parser.add_argument('--agg_neighbor_method', default='mean', help='method of the aggregation of neighbors for SAGE,[mean, sum, pooling, lstm]')
+    parser.add_argument('--agg_neighbor_method', default='lstm', help='method of the aggregation of neighbors for SAGE,[mean, sum, pooling, lstm]')
     parser.add_argument('--agg_neighbor_dropout', default=0.1,
                         help='dropout of the aggregation of neighbors for SAGE')
     parser.add_argument('--agg_hidden_method', default='concat', help='method of the aggregation between neighbors and self-hidden for SAGE,[sum, concat]')
@@ -416,9 +411,6 @@ def main():
     parser.add_argument("--pooling", type=str, default="avg", help="pooling method to use, (avg, max, attn)")
     parser.add_argument("--output_merge", type=str, default="biaffine",
                         help="merge method to use, (fc, aspectatt, gatenorm2, tanhgate, biaffine)")
-    parser.add_argument('--losstype', default=None, type=str,
-                        help="['doubleloss', 'orthogonalloss', 'differentiatedloss']")
-    parser.add_argument('--alpha', default=1, type=float)
     opt = parser.parse_args()
 
     opt.model_class = model_classes[opt.model]
