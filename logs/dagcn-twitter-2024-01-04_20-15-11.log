@@ -50,7 +50,7 @@ training arguments:
 >>> bert_lr: 2e-05
 >>> max_length: 85
 >>> patience: 30
->>> device: cpu
+>>> device: cuda
 >>> seed: 1263
 >>> vocab_dir: ./dataset/Restaurants
 >>> glove_dir: ./glove/glove.840B.300d.txt

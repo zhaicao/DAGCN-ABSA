@@ -302,8 +302,8 @@ class Instructor:
 
 def main():
     model_classes = {
-        'mcgat': DAGCN,
-        'mcgatbert': DAGCNBert
+        'dagcn': DAGCN,
+        'dagcnbert': DAGCNBert
     }
     
     dataset_files = {
@@ -331,8 +331,7 @@ def main():
     
     input_colses = {
         'dagcn': ['text', 'aspect', 'pos', 'head', 'deprel', 'post', 'mask', 'length', 'adj'],
-        'dagcnbert': ['text_bert_indices', 'bert_segments_ids', 'attention_mask', 'asp_start', 'asp_end', 'src_mask', 'aspect_mask', 'text', 'head', 'length','deprel'],
-        'dagcnold': ['text', 'aspect', 'pos', 'head', 'deprel', 'post', 'mask', 'length', 'adj'],
+        'dagcnbert': ['text_bert_indices', 'bert_segments_ids', 'attention_mask', 'asp_start', 'asp_end', 'src_mask', 'aspect_mask', 'text', 'head', 'length','deprel']
     }
     
     initializers = {
@@ -353,7 +352,7 @@ def main():
     
     # Hyperparameters
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model', default='dagcn', type=str, help=', '.join(model_classes.keys()))
+    parser.add_argument('--model', default='dagcnbert', type=str, help=', '.join(model_classes.keys()))
     parser.add_argument('--best_model', default=None, type=str)
     parser.add_argument('--type', default='train', type=str, help='Running type, (train, test)')
     parser.add_argument('--dataset', default='twitter', type=str, help="['restaurant', 'laptop', 'twitter','mams']")
@@ -368,34 +367,32 @@ def main():
     parser.add_argument('--post_dim', type=int, default=30, help='Position embedding dimension.')
     parser.add_argument('--pos_dim', type=int, default=30, help='Pos embedding dimension.')
     parser.add_argument("--dep_dim", type=int, default=100, help="Dependent relation embedding dimension.")
-    parser.add_argument("--deppost_dim", type=int, default=30, help="Syntactic position embedding dimension.")
-    parser.add_argument('--hidden_dim', type=int, default=50, help='GCN mem dim.')
+    parser.add_argument('--hidden_dim', type=int, default=50, help='hidden dimension.')
     parser.add_argument('--polarities_dim', default=3, type=int, help='Num of sentiment class.')
-    # GNN
-    parser.add_argument('--num_layers', type=int, default=2, help='Num of GCN layers.')
+    # RNN
+    parser.add_argument('--bidirect', default=True, help='Do use bi-RNN layer.')
+    parser.add_argument('--rnn_layers', type=int, default=1, help='Number of RNN layers.')
+    parser.add_argument('--rnn_dropout', type=float, default=0.1, help='RNN dropout rate.')
+    # SynGCN
+    parser.add_argument('--syn_layers', type=int, default=2, help='Num of GCN layers.')
     parser.add_argument('--input_dropout', type=float, default=0.7, help='Input dropout rate.')
     parser.add_argument('--gcn_dropout', type=float, default=0.5, help='GCN layer dropout rate.')
     parser.add_argument("--layer_dropout", type=float, default=0, help="RGAT layer dropout rate.")
     parser.add_argument('--lower', default=True, help='Lowercase all words.')
-    parser.add_argument('--gat_alpha', default=0.1, help='GAT LeakyReLU alpha.')
     parser.add_argument('--direct', default=False, help='directed graph or undirected graph')
     parser.add_argument('--loop', default=True)
-    parser.add_argument('--aggr_neighbor_method', default='lstm', help='method of the aggregation of neighbors for SAGE,[mean, sum, pooling, lstm]')
-    parser.add_argument('--aggr_neighbor_dropout', default=0.1,
+    parser.add_argument('--agg_neighbor_method', default='mean', help='method of the aggregation of neighbors for SAGE,[mean, sum, pooling, lstm]')
+    parser.add_argument('--agg_neighbor_dropout', default=0.1,
                         help='dropout of the aggregation of neighbors for SAGE')
-    parser.add_argument('--aggr_hidden_method', default='concat', help='method of the aggregation between neighbors and self-hidden for SAGE,[sum, concat]')
-    # RNN
-    parser.add_argument('--bidirect', default=True, help='Do use bi-RNN layer.')
-    parser.add_argument('--rnn_hidden', type=int, default=50, help='RNN hidden state size.')
-    parser.add_argument('--rnn_layers', type=int, default=1, help='Number of RNN layers.')
-    parser.add_argument('--rnn_dropout', type=float, default=0.1, help='RNN dropout rate.')
-    # Attention
-    parser.add_argument('--attention_heads', default=2, type=int, help='Number of multi-attention heads')
-    parser.add_argument("--num_deprel_heads", type=float, default=10, help="Number of attention heads for dependent relations ")
-    parser.add_argument('--attn_layers', type=int, default=1, help='Num of attntion layers.')
-    parser.add_argument("--att_dropout", type=float, default=0.1, help="self-attention layer dropout rate.")
-    parser.add_argument("--top_k", type=float, default=6, help="Select top k heads for downstream")
-    parser.add_argument("--deprel_alpha", type=float, default=0, help="The weight of attention score from dependent relations")
+    parser.add_argument('--agg_hidden_method', default='concat', help='method of the aggregation between neighbors and self-hidden for SAGE,[sum, concat]')
+    parser.add_argument('--agg_hidden_dropout', default=0.1,
+                        help='dropout of the aggregation of neighbors for SAGE')
+    # SemGCN
+    parser.add_argument('--sem_att_heads', default=4, type=int, help='Number of multi-attention heads')
+    parser.add_argument('--sem_layers', type=int, default=3, help='Num of attntion layers.')
+    parser.add_argument("--sem_att_dropout", type=float, default=0.1, help="self-attention layer dropout rate.")
+    parser.add_argument("--sem_top_k", type=float, default=6, help="Select top k heads for downstream")
+    parser.add_argument("--sem_alpha", type=float, default=0.1, help="LeakyReLU alpha.")
     # BERT
     parser.add_argument('--pretrained_bert_name', default='bert-base-uncased', type=str)
     parser.add_argument("--adam_epsilon", default=1e-8, type=float, help="Epsilon for Adam optimizer.")
@@ -422,7 +419,6 @@ def main():
     parser.add_argument('--losstype', default=None, type=str,
                         help="['doubleloss', 'orthogonalloss', 'differentiatedloss']")
     parser.add_argument('--alpha', default=1, type=float)
-    parser.add_argument('--beta', default=1, type=float)
     opt = parser.parse_args()
 
     opt.model_class = model_classes[opt.model]

@@ -1,7 +1,10 @@
 import math
+import copy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from torch.autograd import Variable
 
 class DynamicLSTM(nn.Module):
     '''
@@ -277,15 +280,10 @@ class GraphAttentionLayer(nn.Module):
         Wh = torch.matmul(h, self.W)  # (B, seq_len, dim)
         Wh1 = torch.matmul(Wh, self.a[:self.out_features, :])  # (B, seq_len, 1)
         Wh2 = torch.matmul(Wh, self.a[self.out_features:, :])  # (B, seq_len, 1)
-        # Wh1 + Wh2.T 是N*N矩阵，第i行第j列是Wh1[i]+Wh2[j]
-        # 那么Wh1 + Wh2.T的第i行第j列刚好就是文中的a^T*[Whi||Whj]
-        # 代表着节点i对节点j的attention
-        e = self.leakyrelu(Wh1 + Wh2.transpose(1, 2))  # (N, N)，计算所有节点的注意力分数
-        padding = -9e15 * torch.ones_like(e)  # (N, N),生成负无穷的矩阵，做Mask
-        attention = torch.where(adj > 0, e, padding)  # (N, N)，注意力分布矩阵，若有邻接则需要注意力系数，否则负无穷
-        attention = F.softmax(attention, dim=1)  # (N, N)，注意力矩阵归一化
-        # attention矩阵第i行第j列代表node_i对node_j的注意力
-        # 对注意力权重也做dropout（如果经过mask之后，attention矩阵也许是高度稀疏的，这样做还有必要吗？）
+        e = self.leakyrelu(Wh1 + Wh2.transpose(1, 2))  # (N, N)，
+        padding = -9e15 * torch.ones_like(e)  # (N, N),
+        attention = torch.where(adj > 0, e, padding)  # (N, N)，
+        attention = F.softmax(attention, dim=1)  # (N, N)
         attention = F.dropout(attention, self.dropout, training=self.training)  # (N, N)
         h = torch.matmul(attention, Wh)  # (B, seq_len, dim)
         if self.concat:
@@ -341,11 +339,11 @@ class SRDGCNLayer(nn.Module):
         self.gcn_drop = nn.Dropout(dropout)
 
     def forward(self, input, adj, dep_dist_adj, key_padding_mask, aspect_mask):
-        """句法依存距离权重"""
+        """syntactic dependency distance weights"""
         # Ax = dep_dist_adj.matmul(input)
         # AxW = self.weight(Ax)
         # gAxW = F.relu(AxW)
-        """句子词间距离权重"""
+        """inter-word distance weights"""
         # aspect_ids_mask = torch.nonzero(torch.eq(aspect_mask, 1))
         # batch_size = input.size(0)
         # aspect_lst = []
@@ -361,7 +359,7 @@ class SRDGCNLayer(nn.Module):
         # input_len = (~key_padding_mask).sum(-1)  # seq len
         # # seq distance weight
         # input = self.position_weight(input, aspect_double_idx, input_len, aspect_len)
-        """不带任何权重的GCN"""
+        """traditional GCN"""
         denom = torch.sum(adj, dim=-1, keepdim=True) + 1
         Ax = adj.matmul(input)
         AxW = self.weight(Ax)
@@ -369,66 +367,37 @@ class SRDGCNLayer(nn.Module):
         gAxW = F.relu(AxW)
         return self.gcn_drop(gAxW)
 
-# class RelationAttentionGATLayer(nn.Module):
-#     """
-#     dependent relation GAT
-#     """
-#     def __init__(self, args):
-#         # in_dim: the dimension fo query vector
-#         super(RelationAttentionGATLayer, self).__init__()
-#         self.args = args
-#         self.self_attn = MultiHeadAttention(args.attention_heads, args.rnn_hidden * 2,
-#                                                 dropout=args.att_dropout)
-#         self.relation_attn = MultiHeadAttention(args.attention_heads, args.rnn_hidden * 2,
-#                                                 relation_aware=True,
-#                                                 dropout=args.att_dropout)
-#         self.feed_forward = PositionwiseFeedForward(args.rnn_hidden * 2, args.rnn_hidden * 2, args.layer_dropout)
-#         self.layer_norm = nn.LayerNorm(args.rnn_hidden * 2, eps=1e-6)
-#         self.attn_dropout = nn.Dropout(args.att_dropout)
-#         self.gcn_dropout = nn.Dropout(args.gcn_dropout)
-#         self.linear_tok_value = nn.Linear(args.rnn_hidden * 2, args.rnn_hidden * 2 // args.attention_heads)
-#         self.linear_rel_value = nn.Linear(args.rnn_hidden * 2, args.rnn_hidden * 2 // args.attention_heads)
-#
-#     def position_weight(self, x, aspect_double_idx, text_len, aspect_len):
-#         batch_size = x.shape[0]
-#         seq_len = x.shape[1]
-#         aspect_double_idx = aspect_double_idx.cpu().numpy()  # (τ+1, τ+m)
-#         text_len = text_len.cpu().numpy()
-#         aspect_len = aspect_len.cpu().numpy()
-#         weight = [[] for i in range(batch_size)]
-#         for i in range(batch_size):  # 计算qi的权重矩阵
-#             context_len = text_len[i] - aspect_len[i]
-#             for j in range(aspect_double_idx[i,0]):
-#                 weight[i].append(1-(aspect_double_idx[i,0]-j)/context_len)
-#             for j in range(aspect_double_idx[i,0], aspect_double_idx[i,1]+1):
-#                 weight[i].append(0)
-#             for j in range(aspect_double_idx[i,1]+1, text_len[i]):
-#                 weight[i].append(1-(j-aspect_double_idx[i,1])/context_len)
-#             for j in range(text_len[i], seq_len):
-#                 weight[i].append(0)
-#         weight = torch.tensor(weight, dtype=torch.float).unsqueeze(2).to(self.opt.device)
-#         return weight*x
-#
-#     def forward(self, inputs, dep_relation_embs, dep_adj, src_mask, aspect_mask):
-#         src_mask = ~src_mask.unsqueeze(-2)
-#         inputs_norm = self.layer_norm(inputs)
-#         adj_mask = dep_adj.eq(0) if dep_adj is not None else None
-#         adj_mask = adj_mask.unsqueeze(1)
-#         # scores
-#         self_attn_score = self.self_attn(inputs_norm, inputs_norm, mask=src_mask)
-#         relation_attn_score = self.relation_attn(inputs_norm, dep_relation_embs, inputs_norm, mask=src_mask).transpose(1, 2)
-#         attn_score = self_attn_score + relation_attn_score
-#         attn_score = attn_score.masked_fill(adj_mask, -1e18)
-#         attn = F.softmax(attn_score, dim=-1)
-#         attn = self.attn_dropout(attn)
-#         # score * value
-#         inputs_norm = self.linear_tok_value(inputs_norm).unsqueeze(1)  # tokens' value
-#         self_context = torch.matmul(attn, inputs_norm)  # self-attn context
-#         dep_relation_embs = self.linear_rel_value(dep_relation_embs)  # relation's value
-#         relation_context = torch.matmul(attn.transpose(1, 2), dep_relation_embs)  # relation-attn context
-#         context = self_context + relation_context.transpose(1, 2)
-#         context = F.relu(context)
-#         context = torch.cat([i.squeeze(1) for i in torch.split(context, 1, dim=1)], dim=-1)
-#         out = self.gcn_dropout(context) + inputs
-#         out = self.feed_forward(out)
-#         return out  # ([N, L])
+
+def rnn_zero_state(batch_size, hidden_dim, num_layers, device, bidirectional=True):
+    total_layers = num_layers * 2 if bidirectional else num_layers
+    state_shape = (total_layers, batch_size, hidden_dim)
+    h0 = c0 = Variable(torch.zeros(*state_shape), requires_grad=False)
+    return h0.to(device), c0.to(device)
+
+def sequence_mask(lengths, max_len=None):
+    """
+    create a mask from sequence length `[batch_size, 1, seq_len]`
+    """
+    batch_size = lengths.numel()
+    max_len = max_len or lengths.max()
+    src_mask = torch.arange(0, max_len, device=lengths.device).type_as(lengths).unsqueeze(0).expand(
+        batch_size, max_len
+    ) >= (lengths.unsqueeze(1))
+    return (~src_mask).to(torch.int)
+
+def select(matrix, top_num):
+    batch = matrix.size(0)
+    # top_k_matrix = top_k_matrix.reshape(batch, -1)
+    maxk, indices = torch.topk(matrix, top_num, dim=-1)
+    # the weights of position in K is set 1 and others 0
+    x = torch.zeros_like(matrix)
+    top_matrix = torch.ones_like(matrix)
+    top_k_matrix = x.scatter_(dim=-1, index=indices, src=top_matrix)
+    top_k_matrix = top_matrix
+    # selfloop
+    for i in range(batch):
+        top_k_matrix[i].fill_diagonal_(1)
+    return top_k_matrix
+
+def clones(module, N):
+    return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])

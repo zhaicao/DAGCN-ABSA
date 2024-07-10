@@ -3,6 +3,7 @@ Basic operations on trees.
 """
 import torch
 import numpy as np
+from collections import defaultdict
 import torch.nn.functional as F
 
 def head_to_adj(sent_len, head, tokens, label, len_, mask, tok, directed=False, self_loop=True):
@@ -36,15 +37,16 @@ def head_to_adj(sent_len, head, tokens, label, len_, mask, tok, directed=False, 
         if self_loop:
             adj_matrix[idx, idx] = 1
             label_matrix[idx, idx] = 42
-    adj_dict = adj_to_dict(adj_matrix, tokens)  # adj2dict
+    adj_dict = matrix_to_dict(adj_matrix)  # matrix2list
     return adj_matrix, label_matrix, adj_dict
 
-def adj_to_dict(adj_matrix, tokens):
+def matrix_to_dict(adj_matrix):
     """
-    将邻接矩阵转换为邻接表
+    Converting adjacency matrix to adjacency list
+    returnType: defaultdict(set)
     """
     num_nodes = len(adj_matrix)
-    adjacency_list = {}
+    adj_dict = {}
 
     for i in range(num_nodes):
         neighbors = []
@@ -52,14 +54,13 @@ def adj_to_dict(adj_matrix, tokens):
             if adj_matrix[i][j] == 1 and i != j:  # discard self-loop
                 neighbors.append(j)
         if neighbors:  # None
-            adjacency_list[i] = neighbors
-
-    return adjacency_list
+            adj_dict[i] = neighbors
+    return adj_dict
 
 
 def dep_distance_adj(adj, dep_post_adj, aspect_mask, len_, maxlen):
     """
-    句法依存距离权重
+    The syntactic dependency distance weight
     """
     weight = np.zeros((maxlen, maxlen), dtype=np.float32)
     dep_post_adj = dep_post_adj[:len_, :len_].add(torch.eye(len_)).numpy()
