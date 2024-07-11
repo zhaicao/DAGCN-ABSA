@@ -6,7 +6,7 @@ import numpy as np
 from collections import defaultdict
 import torch.nn.functional as F
 
-def head_to_adj(sent_len, head, tokens, label, len_, mask, tok, directed=False, self_loop=True):
+def head_to_adj(sent_len, head, tokens, label, len_, mask, directed=False, self_loop=True):
     """
     Convert a sequence of head indexes into a 0/1 matirx and label matrix.
     """
@@ -29,7 +29,7 @@ def head_to_adj(sent_len, head, tokens, label, len_, mask, tok, directed=False, 
         else:
             if self_loop:
                 adj_matrix[idx, idx] = 1
-                label_matrix[idx, idx] = 42  # 自环边
+                label_matrix[idx, idx] = 42  # self loop
                 continue
         if not directed:
             adj_matrix[head - 1, idx] = 1
@@ -64,17 +64,17 @@ def dep_distance_adj(adj, dep_post_adj, aspect_mask, len_, maxlen):
     """
     weight = np.zeros((maxlen, maxlen), dtype=np.float32)
     dep_post_adj = dep_post_adj[:len_, :len_].add(torch.eye(len_)).numpy()
-    max_distance = dep_post_adj.max().item()  # 样本最大句法依赖距离
+    max_distance = dep_post_adj.max().item()  # max distance
     aspect_mask = aspect_mask[:len_].tolist()
     for i in range(len_):
-        row_aspect = (aspect_mask[i] == 1)  # 判断该行词是否方面词
+        row_aspect = (aspect_mask[i] == 1)  # check whether this row belongs an aspect
         for j in range(len_):
-            col_aspect = (aspect_mask[j] == 1)  # 判断该列词是否方面词
-            # 行是方面词且和列有依赖
-            if row_aspect and adj[i][j] == 1:  # 若行是方面词且有依赖关系
+            col_aspect = (aspect_mask[j] == 1)  # this col belongs an aspect
+            # there is the dependency in row
+            if row_aspect and adj[i][j] == 1:
                 weight[i][j] = 1 - dep_post_adj[i][j] / (max_distance + 1)
-            # 列是方面词且与行有依赖
-            if col_aspect and adj[i][j] == 1:  # 若列是方面词且有依赖关系
+            # there is the dependency in col
+            if col_aspect and adj[i][j] == 1:
                 weight[i][j] = 1 - dep_post_adj[i][j] / (max_distance + 1)
     adj = adj + weight  # A = A * (L + 1)
     padding = -9e15 * np.ones_like(adj)

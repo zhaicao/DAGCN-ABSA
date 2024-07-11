@@ -45,7 +45,7 @@ class ContextEncoder(nn.Module):
 
         # #################### Pooling and fusion modules ###################
         self.inp_map = torch.nn.Linear(args.hidden_dim * 2, args.hidden_dim)
-        if self.args.output_merge.lower() == "gatenorm2":
+        if self.args.output_merge.lower() == "gatenorm":
             self.out_gate_map = torch.nn.Linear(args.hidden_dim * 2, args.hidden_dim)
             self.out_norm = nn.LayerNorm(args.hidden_dim)
         elif self.args.output_merge.lower() == "fc":
@@ -69,12 +69,11 @@ class ContextEncoder(nn.Module):
         maxlen = max(lengths.data)
         tok = tok[:, :maxlen]
         """
-        dependency, dependent relation, dependent relative distance adj
+        dependency adj and dict
         """
         adj_lst, label_lst, adj_dict_list, asp_idx_list = [], [], [], []
         for idx in range(len(lengths)):
             adj_i, label_i, adj_dict = head_to_adj(maxlen, head[idx], tok[idx], deprel[idx], lengths[idx], aspect_mask[idx],
-                                         tok[idx],
                                          directed=self.args.direct,
                                          self_loop=self.args.loop)
             adj_lst.append(adj_i.reshape(1, maxlen, maxlen))
@@ -85,7 +84,7 @@ class ContextEncoder(nn.Module):
 
         dep_adj = torch.from_numpy(np.concatenate(adj_lst, axis=0)).to(self.args.device)  # [B, maxlen, maxlen]
 
-        # GNN Encoding
+        # GCN Encoding
         syn_out, sem_out = self.encoder(inputs=inputs,
                                         dep_adj=dep_adj,
                                         adj_dict_list=adj_dict_list,
@@ -125,8 +124,8 @@ class ContextEncoder(nn.Module):
 
 class DualChannelEncoder(nn.Module):
     """
-    syntactic GCN Encoding
-    semantic GCN Encoding
+    Syntactic GCN
+    Semantic GCN
     """
     def __init__(self, args, embeddings):
         super(DualChannelEncoder, self).__init__()

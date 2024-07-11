@@ -397,7 +397,7 @@ def main():
     parser.add_argument('--diff_lr', default=False, action='store_true')
     parser.add_argument('--bert_lr', default=2e-5, type=float)
     # Others
-    parser.add_argument('--max_length', default=85, type=int)  # 按此padding
+    parser.add_argument('--max_length', default=85, type=int)
     parser.add_argument("--patience", type=int, default=30, help="The patience for Easy stopping.")
     parser.add_argument('--device', default=None, type=str, help='cpu, cuda')
     parser.add_argument('--seed', default=random.randint(1, 2 ** 11 - 1), type=int)
@@ -408,9 +408,9 @@ def main():
     parser.add_argument('--parsehead', default=False, action='store_true', help='dependency tree')
     parser.add_argument('--cuda', default='0', type=str)
 
-    parser.add_argument("--pooling", type=str, default="avg", help="pooling method to use, (avg, max, attn)")
+    # parser.add_argument("--pooling", type=str, default="avg", help="pooling method to use, (avg, max, attn)")
     parser.add_argument("--output_merge", type=str, default="biaffine",
-                        help="merge method to use, (fc, aspectatt, gatenorm2, tanhgate, biaffine)")
+                        help="merge method to use, (fc, gatenorm, tanhgate, biaffine)")
     opt = parser.parse_args()
 
     opt.model_class = model_classes[opt.model]

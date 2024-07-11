@@ -37,7 +37,7 @@ class ContextEncoder(nn.Module):
 
         # #################### pooling and fusion modules ###################
         self.inp_map = torch.nn.Linear(self.hidden_dim * 2, self.hidden_dim)
-        if self.args.output_merge.lower() == "gatenorm2":
+        if self.args.output_merge.lower() == "gatenorm":
             self.out_gate_map = torch.nn.Linear(self.hidden_dim * 2, self.hidden_dim)
             self.out_norm = nn.LayerNorm(self.hidden_dim)
         elif self.args.output_merge.lower() == "fc":
@@ -65,13 +65,12 @@ class ContextEncoder(nn.Module):
         maxlen = self.args.max_length
         text = text[:, :maxlen]
         """
-        dependency, dependent relation, dependent relative distance adj
+        dependency adj and dict
         """
         adj_lst, label_lst, adj_dict_list, asp_idx_list = [], [], [], []
         for idx in range(len(lengths)):
             adj_i, label_i, adj_dict = head_to_adj(maxlen, head[idx], text[idx], deprel[idx], lengths[idx],
                                                    aspect_mask[idx],
-                                                   text[idx],
                                                    directed=self.args.direct,
                                                    self_loop=self.args.loop)
             adj_lst.append(adj_i.reshape(1, maxlen, maxlen))
@@ -84,8 +83,8 @@ class ContextEncoder(nn.Module):
 
         # GNN Encoding
         syn_out, sem_out, pooled_output = self.encoder(inputs=inputs,
-                                                          dep_adj=dep_adj,
-                                                          adj_dict_list=adj_dict_list)
+                                                       dep_adj=dep_adj,
+                                                       adj_dict_list=adj_dict_list)
 
         # ###########pooling and fusion #################
         asp_wn = aspect_mask[:, :maxlen].sum(dim=1).unsqueeze(-1)  # aspect count
@@ -120,8 +119,8 @@ class ContextEncoder(nn.Module):
 
 class DualChannelEncoder(nn.Module):
     """
-    Dependency Encoding
-    Aspect-aware Encoding
+    Syntactic GCN
+    Semantic GCN
     """
 
     def __init__(self, bert, args):
@@ -153,15 +152,19 @@ class DualChannelEncoder(nn.Module):
 
         # BERT encoding
         sequence_output, pooled_output = self.bert(text_bert_indices, attention_mask=attention_mask,
-                                                   token_type_ids=bert_segments_ids, return_dict=False)
+                                token_type_ids=bert_segments_ids, return_dict=False)
         sequence_output = self.layernorm(sequence_output)
         gcn_inputs = self.bert_drop(sequence_output)
         pooled_output = self.pooled_drop(pooled_output)
-        input = gcn_inputs  # H from BERT (B, seq_len, dim)
+        # H from BERT (B, seq_len, dim)
+        # get the sentence hidden and pad it to the same length
+        inputs = (gcn_inputs[:, 1:, :] * src_mask[:, :-1].unsqueeze(-1).repeat(1, 1, self.input_dim))
+        temp_tensor = torch.zeros(gcn_inputs.shape[0], 1, gcn_inputs.shape[-1])
+        inputs = torch.cat((inputs, temp_tensor), dim=1)
         # Syntactic GCN
-        syn_output = self.syn_gcn(input, dep_adj, adj_dict_list, src_mask, aspect_mask)
+        syn_output = self.syn_gcn(inputs, dep_adj, adj_dict_list, src_mask, aspect_mask)
         # Sematic GCN
-        sem_output = self.sem_gcn(input, dep_adj, src_mask, aspect_mask)
+        sem_output = self.sem_gcn(inputs, dep_adj, src_mask, aspect_mask)
         syn_output = F.relu(self.Wsyn(syn_output))
         sem_output = F.relu(self.Wsem(sem_output))
 

@@ -29,15 +29,15 @@ class SyntacticGCN(nn.Module):
                                         agg_neighbor_method=args.agg_neighbor_method,
                                         agg_neighbor_dropout=args.agg_neighbor_dropout))
 
-    def forward(self, input, dep_adj, adj_dict_list, key_padding_mask, aspect_mask):
-        """GCN"""
+    def forward(self, input, dep_adj, adj_dict_list, padding_mask, aspect_mask):
+        """Traditional GCN"""
         # denom = torch.sum(dep_adj, dim=-1, keepdim=True) + 1
         # Ax = dep_adj.matmul(input)
         # AxW = self.weight(Ax)
         # AxW = AxW / denom
         # gAxW = F.relu(AxW)
         # return self.gcn_drop(gAxW)
-        """SuyGCN"""
+        """SnyGCN"""
         src_nodes = [[[idx for idx, item in enumerate(row.tolist()) if item == 1] for row in aspect_mask]]  # source nodes idx (layer, B, idx)
         src_mask_list, neigh_mask_list = [], []
 
@@ -67,18 +67,12 @@ class SyntacticGCN(nn.Module):
         for l in range(self.num_layers - 1, -1, -1):
             src_mask = src_mask_list[l]
             neigh_mask = neigh_mask_list[l]
-
             h = hidden_tensor.unsqueeze(1).expand(hidden_tensor.shape[0], src_mask.shape[1], hidden_tensor.shape[1],
                                                   hidden_tensor.shape[-1])  # (B, src_node_num, maxlen, emb_dim)
             src_node_features = h * src_mask
             neigh_node_features = h * neigh_mask
-            """
-            Aggregation
-            """
-            arr_hidden = self.gcn[l](src_node_features, neigh_node_features, src_nodes[l], adj_dict_list)  # aggregation
-            """
-            /end Aggregation
-            """
+            # aggregation
+            arr_hidden = self.gcn[l](src_node_features, neigh_node_features, src_nodes[l], adj_dict_list)
             # replace the original word embedding by the row index
             output_indicator = 0
             for batch, nodes_lst in enumerate(src_nodes[l]):
@@ -131,9 +125,7 @@ class SynGCNLayer(nn.Module):
             # get non-all-zero row indices
             nonzero_indices = torch.nonzero(torch.sum(hidden != 0, dim=1)).squeeze()
             return hidden[nonzero_indices]
-
         neighbor_hidden = self.aggregator(neigh_node_features, src_nodes, adj_dict_list)
-
         if self.agg_hidden_method == "sum":
             hidden = src_node_features.sum(dim=2) + neighbor_hidden
             hidden = filter_nonsource_nodes(hidden)
@@ -164,6 +156,7 @@ class NeighborAggregator(nn.Module):
         self.use_bias = use_bias
         self.rnn_layers = 1
         self.device = device
+        self.output_dim = output_dim
         if agg_neighbor_method == 'lstm':
             self.lstm = nn.LSTM(input_dim, output_dim, num_layers=self.rnn_layers, batch_first=True, dropout=agg_neighbor_dropout)
         if agg_neighbor_method == 'pooling':
@@ -225,12 +218,13 @@ class NeighborAggregator(nn.Module):
             agg_neighbor_hidden = torch.where(neigh_features_seq == -9e15, torch.tensor(0), neigh_features_seq)
         elif self.agg_neighbor_method == "lstm":
             (batch_size, src_node_num, maxlen, emb_dim) = neighbor_features.shape
-            neigh_features_seq = torch.zeros(batch_size * src_node_num, maxlen,
+            neigh_features_seq = torch.zeros(batch_size * src_node_num, maxlen,  # (B * src_node_num, maxlen, emb_dim)
                                              emb_dim)
-            neighbor_hidden = neighbor_features.view(batch_size * src_node_num * maxlen,
+            neighbor_hidden = neighbor_features.view(batch_size * src_node_num * maxlen,  # (B * src_node_num * maxlen, emb_dim)
                                                      emb_dim)
             # Filter out padding neighbor nodes(features with all zero)
-            nonzero_indices = torch.nonzero(torch.sum(neighbor_hidden != 0, dim=1)).squeeze()
+            nonzero_indices = torch.nonzero(~(neighbor_hidden == 0).all(dim=1), as_tuple=False).squeeze()
+            # nonzero_indices = torch.nonzero(torch.sum(neighbor_hidden != 0, dim=1)).squeeze()
             neighbor_hidden = neighbor_hidden[nonzero_indices]
             output_indicator = 0
             neigh_features_len = [0] * batch_size * src_node_num

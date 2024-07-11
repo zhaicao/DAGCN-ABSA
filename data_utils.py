@@ -1,13 +1,10 @@
 import os
 import sys
-
-sys.path.append(r'./Parser/src_joint')
-import re
 import torch
 import json
 import pickle
 import numpy as np
-from tqdm import tqdm
+
 from transformers import BertTokenizer
 from torch.utils.data import Dataset
 from collections import defaultdict
@@ -173,7 +170,9 @@ class Tokenizer(object):
 
 
 class ABSAData(Dataset):
-    ''' PyTorch standard dataset class '''
+    '''
+    Build inputs for GloVe-based encoder
+    '''
 
     def __init__(self, fname, tokenizer, opt, vocab_help):
 
@@ -199,27 +198,7 @@ class ABSAData(Dataset):
                                           padding='post', truncating='post')
 
             adj = np.ones(opt.max_length) * opt.pad_id
-            if opt.parseadj:
-                from absa_parser import headparser
-                # * adj
-                headp, syntree = headparser.parse_heads(obj['text'])
-                adj = softmax(headp[0])
-                adj = np.delete(adj, 0, axis=0)
-                adj = np.delete(adj, 0, axis=1)
-                adj -= np.diag(np.diag(adj))
-                if not opt.direct:
-                    adj = adj + adj.T
-                adj = adj + np.eye(adj.shape[0])
-                adj = np.pad(adj, (0, opt.max_length - adj.shape[0]), 'constant')
-
-            if opt.parsehead:
-                from absa_parser import headparser
-                headp, syntree = headparser.parse_heads(obj['text'])
-                syntree2head = [[leaf.father for leaf in tree.leaves()] for tree in syntree]
-                head = tokenizer.pad_sequence(syntree2head[0], pad_id=opt.pad_id, maxlen=opt.max_length, dtype='int64',
-                                              padding='post', truncating='post')
-            else:
-                head = tokenizer.pad_sequence(obj['head'], pad_id=opt.pad_id, maxlen=opt.max_length, dtype='int64',
+            head = tokenizer.pad_sequence(obj['head'], pad_id=opt.pad_id, maxlen=opt.max_length, dtype='int64',
                                               padding='post', truncating='post')
             length = obj['length']
             polarity = polarity_dict[obj['label']]
@@ -247,7 +226,7 @@ class ABSAData(Dataset):
 
     def build_dependent_position_adj(self, tokenizer, tokens, head, opt):
         """
-        构建句法依赖距离邻接矩阵
+        Build the matrix of dependency distance
         """
         token_range = []
         token_start = 0
@@ -300,30 +279,12 @@ class ABSAData(Dataset):
 
         return word_pair_deppost
 
-    def dep_position_weight(self, input, adj, dep_post_adj, aspect_mask, maxlen):
-        """
-        句法依存距离权重
-        """
-        weight = torch.zeros_like(adj)
-        for i in range(input):  # 构建句法依存距离权重矩阵
-            max_distance = dep_post_adj[i].max().item()  # 样本最大句法依赖距离
-            for j in range(maxlen):
-                row_aspect = (aspect_mask[i][j] == 1).item()  # 判断该行词是否方面词
-                for t in range(maxlen):
-                    col_aspect = (aspect_mask[i][t] == 1).item()  # 判断该列词是否方面词
-                    # 行是方面词且和列有依赖
-                    if row_aspect and adj[i][j][t] == 1:  # 若行是方面词且有依赖关系
-                        weight[i][j][t] = 1 - dep_post_adj[i][j][t] / (max_distance + 1)
-                    # 列是方面词且与行有依赖
-                    if col_aspect and adj[i][j][t] == 1:  # 若列是方面词且有依赖关系
-                        weight[i][j][t] = 1 - dep_post_adj[i][j][t] / (max_distance + 1)
-        adj = adj + weight  # A = A * (L + 1)
-        padding = -9e15 * torch.ones_like(adj)
-        adj = torch.where(adj > 0, adj, padding)
-        return adj  # srd = A * (L + 1)
-
 class ABSABertData(Dataset):
     def __init__(self, fname, tokenizer, opt, dep_vocab):
+        """
+        Build inputs for BERT-based encoder
+        Note that the src_mask, aspect_mask, tokens and head are not built for the BERT format.
+        """
         self.data = []
         parse = ParseData
         polarity_dict = {'positive': 0, 'negative': 1, 'neutral': 2}
@@ -377,18 +338,20 @@ class ABSABertData(Dataset):
 
             bert_head = [head[idx] for idx in tok2ori_map]  # head
             bert_deprel = [deprel[idx] for idx in tok2ori_map]  #deprel
-
-            tokens = tokenizer.convert_tokens_to_ids(bert_tokens)
+            # tokens = tokenizer.convert_tokens_to_ids(bert_tokens)
+            tokens = tokenizer.convert_tokens_to_ids(text_list)
             aspect_tokens = tokenizer.convert_tokens_to_ids(term_tokens)
             context_asp_ids = [tokenizer.cls_token_id] + tokenizer.convert_tokens_to_ids(
                 bert_tokens) + [tokenizer.sep_token_id] + tokenizer.convert_tokens_to_ids(term_tokens) + [
                                   tokenizer.sep_token_id]
             context_asp_len = len(context_asp_ids)
+            # padding
             paddings = [0] * (tokenizer.max_seq_len - context_asp_len)
             context_len = len(bert_tokens)
             context_asp_seg_ids = [0] * (1 + context_len + 1) + [1] * (len(term_tokens) + 1) + paddings
-            src_mask = [0] + [1] * context_len + [0] * (opt.max_length - context_len - 1)
-            aspect_mask = [0] + [0] * asp_start + [1] * (asp_end - asp_start)
+            src_mask = [1] * length + [0] * (opt.max_length - length)
+            # aspect_mask = [0] * asp_start + [1] * (asp_end - asp_start)
+            aspect_mask = [0] * term_start + [1] * (term_end - term_start)
             aspect_mask = aspect_mask + (opt.max_length - len(aspect_mask)) * [0]
             context_asp_attention_mask = [1] * context_asp_len + paddings
             context_asp_ids += paddings
@@ -398,7 +361,7 @@ class ABSABertData(Dataset):
             src_mask = np.asarray(src_mask, dtype='int64')
             aspect_mask = np.asarray(aspect_mask, dtype='int64')
 
-            tokens = tokens + [0] * (opt.max_length - truncate_tok_len)
+            tokens = tokens + [0] * (opt.max_length - len(tokens))
             tokens = np.asarray(tokens, dtype='int64')
 
             bert_head = bert_head + [0] * (opt.max_length - len(bert_head))
@@ -406,6 +369,12 @@ class ABSABertData(Dataset):
 
             bert_deprel = bert_deprel + [0] * (opt.max_length - len(bert_deprel))
             bert_deprel = np.asarray(bert_deprel, dtype='int64')
+
+            head = head + [0] * (opt.max_length - len(head))
+            head = np.asarray(head, dtype='int64')
+
+            deprel = deprel + [0] * (opt.max_length - len(deprel))
+            deprel = np.asarray(deprel, dtype='int64')
 
             data = {
                 'text_bert_indices': context_asp_ids,
@@ -416,9 +385,9 @@ class ABSABertData(Dataset):
                 'src_mask': src_mask,
                 'aspect_mask': aspect_mask,
                 'text': tokens,
-                'head': bert_head,
+                'head': head,
                 'length': length,
-                'deprel': bert_deprel,
+                'deprel': deprel,
                 'polarity': polarity
             }
             self.data.append(data)
