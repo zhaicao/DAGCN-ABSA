@@ -21,13 +21,13 @@ To install requirements, run `pip install -r requirements.txt`.
    
    - Downloading pretrained BERT ([bert-base-uncased](https://huggingface.co/google-bert/bert-base-uncased/tree/main)) and put it into `bert-base-uncased` folder. 
 
-3. Build vocabulary
+2. Build vocabulary
 
    ```
    bash build_vocab.sh
    ```
 
-### Training
+## Training
 
    Go to Corresponding directory and run scripts:
 
