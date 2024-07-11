@@ -1,7 +1,7 @@
 cuda memory allocated: 493230592
 n_trainable_params: 121593732, n_nontrainable_params: 0
 training arguments:
->>> model: mcgatbert
+>>> model: dagcnbert
 >>> best_model: None
 >>> type: train
 >>> dataset: twitter
@@ -19,27 +19,25 @@ training arguments:
 >>> deppost_dim: 30
 >>> hidden_dim: 50
 >>> polarities_dim: 3
->>> num_layers: 2
+>>> syn_layers: 2
 >>> input_dropout: 0.7
->>> gcn_dropout: 0.4
->>> layer_dropout: 0
+>>> biaffine_dropout: 0.4
 >>> lower: True
->>> gat_alpha: 0.1
 >>> direct: False
 >>> loop: True
 >>> aggr_neighbor_method: lstm
 >>> aggr_neighbor_dropout: 0.1
 >>> aggr_hidden_method: concat
+>>> agg_hidden_dropout: 0.1
 >>> bidirect: True
 >>> rnn_hidden: 50
 >>> rnn_layers: 1
 >>> rnn_dropout: 0.1
->>> attention_heads: 6
->>> num_deprel_heads: 10
->>> attn_layers: 1
->>> att_dropout: 0.1
->>> top_k: 4
->>> deprel_alpha: 0
+>>> sem_att_heads: 8
+>>> sem_layers: 1
+>>> sem_att_dropout: 0.1
+>>> sem_top_k: 5
+>>> sem_alpha: 0
 >>> pretrained_bert_name: ./bert-base-uncased
 >>> adam_epsilon: 1e-08
 >>> bert_dim: 768
@@ -51,17 +49,11 @@ training arguments:
 >>> patience: 25
 >>> device: cuda
 >>> seed: 83
->>> vocab_dir: ./dataset/Restaurants
+>>> vocab_dir: ./dataset/Tweets
 >>> glove_dir: ./glove/glove.840B.300d.txt
 >>> pad_id: 0
->>> parseadj: False
->>> parsehead: False
 >>> cuda: 0
->>> pooling: avg
 >>> output_merge: biaffine
->>> losstype: None
->>> alpha: 1
->>> beta: 1
 >>> model_class: <class 'models.mcgat_bert.MCGATBert'>
 >>> dataset_file: {'train': './dataset/Tweets/train.json', 'valid': './dataset/Tweets/valid.json', 'test': './dataset/Tweets/test.json'}
 >>> inputs_cols: ['text_bert_indices', 'bert_segments_ids', 'attention_mask', 'asp_start', 'asp_end', 'src_mask', 'aspect_mask', 'text', 'head', 'length', 'deprel']

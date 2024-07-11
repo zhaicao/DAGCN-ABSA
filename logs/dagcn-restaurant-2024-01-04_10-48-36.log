@@ -2,7 +2,7 @@ Loading vocab...
 token_vocab: 4521, post_vocab: 160, dep_post_vocab: 10, pos_vocab: 46, dep_vocab: 43, pol_vocab: 3
 n_trainable_params: 591434, n_nontrainable_params: 1356300
 training arguments:
->>> model: mcgat
+>>> model: dagcn
 >>> best_model: None
 >>> type: train
 >>> dataset: restaurant
@@ -20,27 +20,25 @@ training arguments:
 >>> deppost_dim: 30
 >>> hidden_dim: 50
 >>> polarities_dim: 3
->>> num_layers: 2
+>>> syn_layers: 2
 >>> input_dropout: 0.7
->>> gcn_dropout: 0.5
->>> layer_dropout: 0
+>>> biaffine_dropout: 0.5
 >>> lower: True
->>> gat_alpha: 0.1
 >>> direct: False
 >>> loop: True
 >>> aggr_neighbor_method: lstm
 >>> aggr_neighbor_dropout: 0.1
 >>> aggr_hidden_method: concat
+>>> agg_hidden_dropout: 0.1
 >>> bidirect: True
 >>> rnn_hidden: 50
 >>> rnn_layers: 1
 >>> rnn_dropout: 0.1
->>> attention_heads: 5
->>> num_deprel_heads: 10
->>> attn_layers: 1
->>> att_dropout: 0.1
->>> top_k: 6
->>> deprel_alpha: 0
+>>> sem_att_heads: 5
+>>> sem_layers: 1
+>>> sem_att_dropout: 0.1
+>>> sem_top_k: 3
+>>> sem_alpha: 0.1
 >>> pretrained_bert_name: bert-base-uncased
 >>> adam_epsilon: 1e-08
 >>> bert_dim: 768
@@ -55,14 +53,8 @@ training arguments:
 >>> vocab_dir: ./dataset/Restaurants
 >>> glove_dir: ./glove/glove.840B.300d.txt
 >>> pad_id: 0
->>> parseadj: False
->>> parsehead: False
 >>> cuda: 0
->>> pooling: avg
 >>> output_merge: biaffine
->>> losstype: None
->>> alpha: 1
->>> beta: 1
 >>> model_class: <class 'models.mcgat.MCGAT'>
 >>> dataset_file: {'train': './dataset/Restaurants/train.json', 'valid': './dataset/Restaurants/valid.json', 'test': './dataset/Restaurants/test.json'}
 >>> inputs_cols: ['text', 'aspect', 'pos', 'head', 'deprel', 'post', 'mask', 'length', 'adj']

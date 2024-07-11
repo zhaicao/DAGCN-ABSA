@@ -404,11 +404,8 @@ def main():
     parser.add_argument('--vocab_dir', type=str, default='./dataset/Restaurants')
     parser.add_argument('--glove_dir', type=str, default='./glove/glove.840B.300d.txt')
     parser.add_argument('--pad_id', default=0, type=int)
-    parser.add_argument('--parseadj', default=False, action='store_true', help='dependency probability')
-    parser.add_argument('--parsehead', default=False, action='store_true', help='dependency tree')
     parser.add_argument('--cuda', default='0', type=str)
 
-    # parser.add_argument("--pooling", type=str, default="avg", help="pooling method to use, (avg, max, attn)")
     parser.add_argument("--output_merge", type=str, default="biaffine",
                         help="merge method to use, (fc, gatenorm, tanhgate, biaffine)")
     opt = parser.parse_args()
