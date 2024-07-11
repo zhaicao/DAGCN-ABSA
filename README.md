@@ -44,7 +44,7 @@ To install requirements, run `pip install -r requirements.txt`.
 |Database|  Acc  | F1  | Log | 
 |  :----:  | :----:  |:---:|  :----:  |
 | Res14   | 84.90 | 78.34 | [log](https://github.com/zhaicao/DAGCN-ABSA/blob/master/logs/dagcn-restaurant-2024-01-04_10-48-36.log) |
-| Laptop  | 79.59 | 76.60 | [log](https://github.com/zhaicao/DAGCN-ABSA/blob/master/logs/dagcnbert-laptop-2024-01-04_12-20-21.log) |
+| Laptop  | 79.59 | 76.60 | [log](https://github.com/zhaicao/DAGCN-ABSA/blob/master/logs/dagcn-laptop-2023-12-15_08-05-49.log) |
 | Twitter | 76.96 | 75.92 | [log](https://github.com/zhaicao/DAGCN-ABSA/blob/master/logs/dagcn-twitter-2024-01-04_20-15-11.log) | 
 | MAMS    | 81.96 | 81.09 | [log](https://github.com/zhaicao/DAGCN-ABSA/blob/master/logs/dagcn-mams-2023-12-20_18-37-58.log) |
 
