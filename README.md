@@ -15,7 +15,7 @@ To install requirements, run `pip install -r requirements.txt`.
 
 1. Prepare data 
    
-   - Restaurants, Laptop, Twitter and MAMS dataset. (We provide the parsed data at directory `dataset`)
+   - Restaurants, Laptop, Twitter and MAMS datasets. (We provide the parsed data at directory `dataset`)
 
    - Downloading Glove embeddings ([glove.840B.300d.zip](http://nlp.stanford.edu/data/glove.840B.300d.zip)), and put it into `glove` directory after unzipping the file.
    
