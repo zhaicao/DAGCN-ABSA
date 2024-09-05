@@ -17,7 +17,7 @@ To install requirements, run `pip install -r requirements.txt`.
    
    - Restaurants, Laptop, Twitter and MAMS datasets. (We provide the parsed data at directory `dataset`)
 
-   - Downloading Glove embeddings ([glove.840B.300d.zip](http://nlp.stanford.edu/data/glove.840B.300d.zip)), and put it into `glove` directory after unzipping the file.
+   - Downloading Glove embeddings ([glove.840B.300d.zip](https://apache-mxnet.s3.cn-north-1.amazonaws.com.cn/gluon/embeddings/glove/glove.840B.300d.zip)), and put it into `glove` directory after unzipping the file.
    
    - Downloading pretrained BERT ([bert-base-uncased](https://huggingface.co/google-bert/bert-base-uncased/tree/main)) and put it into `bert-base-uncased` folder. 
 
