@@ -159,7 +159,7 @@ class DualChannelEncoder(nn.Module):
         # H from BERT (B, seq_len, dim)
         # get the sentence hidden and pad it to the same length
         inputs = (gcn_inputs[:, 1:, :] * src_mask[:, :-1].unsqueeze(-1).repeat(1, 1, self.input_dim))
-        temp_tensor = torch.zeros(gcn_inputs.shape[0], 1, gcn_inputs.shape[-1])
+        temp_tensor = torch.zeros(gcn_inputs.shape[0], 1, gcn_inputs.shape[-1]).to(self.args.device)
         inputs = torch.cat((inputs, temp_tensor), dim=1)
         # Syntactic GCN
         syn_output = self.syn_gcn(inputs, dep_adj, adj_dict_list, src_mask, aspect_mask)

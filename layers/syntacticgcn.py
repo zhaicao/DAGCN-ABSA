@@ -193,7 +193,7 @@ class NeighborAggregator(nn.Module):
             """
             (batch_size, src_node_num, maxlen, emb_dim) = neighbor_features.shape
             neigh_features_seq = -9e15 * torch.ones(batch_size * src_node_num, maxlen,
-                                             emb_dim)
+                                             emb_dim).to(self.device)
             neighbor_hidden = neighbor_features.view(batch_size * src_node_num * maxlen,
                                                      emb_dim)
             # Filter out padding neighbor nodes(features with all zero)
@@ -219,7 +219,7 @@ class NeighborAggregator(nn.Module):
         elif self.agg_neighbor_method == "lstm":
             (batch_size, src_node_num, maxlen, emb_dim) = neighbor_features.shape
             neigh_features_seq = torch.zeros(batch_size * src_node_num, maxlen,  # (B * src_node_num, maxlen, emb_dim)
-                                             emb_dim)
+                                             emb_dim).to(self.device)
             neighbor_hidden = neighbor_features.view(batch_size * src_node_num * maxlen,  # (B * src_node_num * maxlen, emb_dim)
                                                      emb_dim)
             # Filter out padding neighbor nodes(features with all zero)
@@ -233,7 +233,7 @@ class NeighborAggregator(nn.Module):
                 neighbor_len = [len(adj_dict_list[batch].get(node_idx, [])) for node_idx in nodes_list]
                 for i, node_idx in enumerate(nodes_list):
                     # shuffle nodes' sequence
-                    shuffled_indices = torch.randperm(neighbor_len[i])
+                    shuffled_indices = torch.randperm(neighbor_len[i]).to(self.device)
                     neigh_features_seq[(batch * src_node_num) + i][0: neighbor_len[i]] = \
                         neighbor_hidden[output_indicator: output_indicator + neighbor_len[i]][shuffled_indices]
                     output_indicator += neighbor_len[i]
@@ -246,7 +246,7 @@ class NeighborAggregator(nn.Module):
             _, (agg_neighbor, _) = self.encode_with_rnn(neigh_features_seq_filter, list(indicator.values()), len(indicator))
             agg_neighbor = agg_neighbor.squeeze(0)
             # neighbor hidden (B, src_node_num, emb_dim)
-            agg_neighbor_hidden = torch.zeros(batch_size, src_node_num, emb_dim)
+            agg_neighbor_hidden = torch.zeros(batch_size, src_node_num, emb_dim).to(self.device)
             # final hidden
             replace_indicator = 0
             for batch, src_nodes_list in enumerate(src_nodes):
