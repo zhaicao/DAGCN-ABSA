@@ -62,10 +62,13 @@ To install requirements, run `pip install -r requirements.txt`.
 If you find this work useful, please cite as following.
 ```
 @ARTICLE{10588956,
-  author={Wanneng Shu and Cao Zhai and Ke Yu},
+  author={Shu, Wanneng and Zhai, Cao and Yu, Ke},
   journal={IEEE Transactions on Computational Social Systems}, 
   title={DAGCN: Dual-Channel and Aspect-Aware Graph Convolutional Network for Aspect-Based Sentiment Analysis in Computational Social Systems}, 
-  year={2024},
+  year={2025},
+  volume={12},
+  number={6},
+  pages={5405-5415},
   doi={10.1109/TCSS.2024.3418472}}
 ```
 ### Credits

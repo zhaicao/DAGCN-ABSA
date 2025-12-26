@@ -349,7 +349,7 @@ def main():
     
     # Hyperparameters
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model', default='dagcnbert', type=str, help=', '.join(model_classes.keys()))
+    parser.add_argument('--model', default='dagcn', type=str, help=', '.join(model_classes.keys()))
     parser.add_argument('--best_model', default=None, type=str)
     parser.add_argument('--type', default='train', type=str, help='Running type, (train, test)')
     parser.add_argument('--dataset', default='twitter', type=str, help="['restaurant', 'laptop', 'twitter','mams']")
